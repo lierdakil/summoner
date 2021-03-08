@@ -66,6 +66,7 @@ extra-source-files:
     examples/full-batteries/.stylish-haskell.yaml
     examples/full-batteries/.travis.yml
     examples/full-batteries/LICENSE
+    config.yaml
 
 source-repository head
   type:     git
@@ -153,6 +154,15 @@ library
                      , time >= 1.8 && < 1.11
                      , tomland ^>= 1.3.0.0
                      , validation-selective ^>= 0.1.0.0
+                     , yaml ^>= 0.11.5.0
+                     , unordered-containers ^>=0.2.13.0
+                     , aeson ^>= 1.5.2.0
+                     , req ^>= 3.9.0
+                     , modern-uri ^>= 0.3.4.1
+                     , file-embed ^>= 0.0.13
+                     , exceptions ^>= 0.10.4
+                     , xdg-basedir ^>= 0.2.2
+                     , bytestring ^>= 0.10.12.0
 
 executable summon
   import:              common-options

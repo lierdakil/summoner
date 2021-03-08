@@ -27,6 +27,8 @@ import Summoner (CustomPrelude (..), GhcVer (..), License (..), LicenseName (..)
 import Summoner.Template (createProjectTemplate)
 import Summoner.Text (quote)
 import Summoner.Tree (TreeFs (..))
+import Summoner.GhcVer (allGhcVer)
+import Data.Version (Version(..))
 
 
 goldenSpec :: Spec
@@ -83,7 +85,7 @@ fullBatteries = Settings
     , settingsIsExe          = True
     , settingsTest           = True
     , settingsBench          = True
-    , settingsTestedVersions = [minBound .. defaultGHC]
+    , settingsTestedVersions = allGhcVer
     , settingsPrelude        = Just $ CustomPrelude "relude" "Relude"
     , settingsExtensions     = ["ConstraintKinds", "LambdaCase", "OverloadedStrings"]
     , settingsGitignore      = [".secret"]
@@ -144,7 +146,7 @@ stackFull = Settings
     , settingsIsExe          = True
     , settingsTest           = True
     , settingsBench          = True
-    , settingsTestedVersions = [Ghc844 .. defaultGHC]
+    , settingsTestedVersions = dropWhile (\v -> ghcVer v /= Version [8,4,4] []) allGhcVer
     , settingsPrelude        = Just $ CustomPrelude "relude" "Relude"
     , settingsExtensions     = ["DeriveGeneric", "TypeApplications"]
     , settingsGitignore      = []
@@ -175,7 +177,7 @@ cabalFull = Settings
     , settingsIsExe          = True
     , settingsTest           = True
     , settingsBench          = True
-    , settingsTestedVersions = [Ghc844 .. defaultGHC]
+    , settingsTestedVersions = dropWhile (\v -> ghcVer v /= Version [8,4,4] []) allGhcVer
     , settingsPrelude        = Just $ CustomPrelude "relude" "Relude"
     , settingsExtensions     = ["DeriveGeneric", "TypeApplications"]
     , settingsGitignore      = []

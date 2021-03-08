@@ -24,20 +24,18 @@ module Summoner.Default
        , currentYear
        ) where
 
-import Relude.Extra.Enum (prev)
-
 import Data.Time (getCurrentTime, getCurrentTimeZone, localDay, toGregorian, utcToLocalTime)
 import System.Directory (getHomeDirectory)
 import System.FilePath ((</>))
 
-import Summoner.GhcVer (GhcVer, showGhcVer)
+import Summoner.GhcVer (GhcVer, showGhcVer, latestGHCVersion, nthGHCVersion)
 import Summoner.License (LicenseName (MIT))
 import Summoner.Text (quote)
 
 
 -- | Default GHC version is the latest available.
 defaultGHC :: GhcVer
-defaultGHC = maxBound
+defaultGHC = latestGHCVersion
 
 -- | Default version of the Cabal.
 defaultCabal :: Text
@@ -175,5 +173,5 @@ defaultConfigFileContent = unlines
 
     defaultGhcVer, defaultGhcPrev, defaultGhcPrevPrev :: Text
     defaultGhcVer = showGhcVer defaultGHC
-    defaultGhcPrev = showGhcVer $ prev defaultGHC
-    defaultGhcPrevPrev = showGhcVer $ prev $ prev defaultGHC
+    defaultGhcPrev = showGhcVer $ nthGHCVersion 1
+    defaultGhcPrevPrev = showGhcVer $ nthGHCVersion 2

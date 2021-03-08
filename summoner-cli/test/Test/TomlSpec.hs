@@ -12,7 +12,7 @@ import Validation (isSuccess)
 import Summoner.Config (ConfigP (..), PartialConfig, configCodec, defaultConfig, finalise)
 import Summoner.CustomPrelude (CustomPrelude (..))
 import Summoner.Default (defaultConfigFileContent)
-import Summoner.GhcVer (GhcVer)
+import Summoner.GhcVer (GhcVer, allGhcVer)
 import Summoner.License (LicenseName)
 import Summoner.Source (Source (..))
 import Test.DecisionSpec (genDecision)
@@ -65,7 +65,7 @@ genTextArr :: MonadGen m => m [Text]
 genTextArr = Gen.list (Range.constant 0 10) genText
 
 genGhcVerArr :: MonadGen m => m [GhcVer]
-genGhcVerArr = Gen.list (Range.constant 0 10) Gen.enumBounded
+genGhcVerArr = Gen.list (Range.constant 0 10) $ Gen.element allGhcVer
 
 genCustomPrelude :: MonadGen m => m CustomPrelude
 genCustomPrelude = do

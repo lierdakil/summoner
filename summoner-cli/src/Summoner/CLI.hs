@@ -43,7 +43,7 @@ import Options.Applicative (Parser, ParserInfo, ParserPrefs, argument, command, 
                             subparser, subparserInline, switch, value)
 import Options.Applicative.Help.Chunk (stringChunk)
 import Relude.Extra.Enum (universe)
-import System.Directory (doesFileExist)
+import System.Directory (doesFileExist, createDirectoryIfMissing)
 import System.Info (os)
 import Validation (Validation (..))
 
@@ -62,6 +62,10 @@ import Summoner.Template.Script (scriptFile)
 
 import qualified Data.Text as T
 import qualified Paths_summoner as Meta (version)
+import qualified Data.ByteString as BS
+import System.Environment.XDG.BaseDir
+import System.FilePath
+import Network.HTTP.Req
 
 
 -- | Main function that parses @CLI@ commands and runs them using given
@@ -88,7 +92,19 @@ runCliCommand = \case
     Script opts -> runScript opts
     ShowInfo opts -> runShow opts
     Config opts -> runConfig opts
+    Update -> runUpdate
 
+runUpdate :: IO ()
+runUpdate = do
+  cacheDir <- getUserCacheDir "summoner"
+  createDirectoryIfMissing True cacheDir
+  runReq defaultHttpConfig $ do
+    bs <- req GET path NoReqBody bsResponse mempty
+    let body = responseBody bs
+    liftIO $ BS.writeFile (cacheDir </> "config.yaml") body
+  runShow GhcList
+  where
+  path = https "raw.githubusercontent.com" /: "lierdakil" /: "summoner" /: "remote-config-file" /: "summoner-cli" /: "config.yaml"
 
 {- | Runs @config@ command
 
@@ -261,6 +277,8 @@ data Command
     | ShowInfo !ShowOpts
     -- | @config@ command creates the TOML configuration file
     | Config !ConfigOpts
+    -- | @update@ command pulls ghc version information from repository
+    | Update
 
 -- | Options parsed with the @new@ command
 data NewOpts = NewOpts
@@ -322,6 +340,7 @@ summonerP = subparser
    <> command "script" (info (helper <*> scriptP) $ progDesc "Create a new Haskell script")
    <> command "show" (info (helper <*> showP) $ progDesc "Show supported licenses or ghc versions")
    <> command "config" (info (helper <*> configP) $ progDesc "Create a default TOML configuration file for summoner")
+   <> command "update" (info (helper <*> pure Update) $ progDesc "Pull up-to-date GHC version information from repository and save it in cache")
 
 ----------------------------------------------------------------------------
 -- @config@ command parsers

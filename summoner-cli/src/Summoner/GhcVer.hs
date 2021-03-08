@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances, TemplateHaskell #-}
 {- |
 Module                  : Summoner.GhcVer
 Copyright               : (c) 2017-2021 Kowainik
@@ -11,63 +12,119 @@ and some useful functions for manipulation with them.
 -}
 
 module Summoner.GhcVer
-    ( GhcVer (..)
+    ( GhcVer
     , GhcMeta (..)
     , Pvp (..)
     , showGhcVer
     , parseGhcVer
     , latestLts
+    , ghcVer
+    , latestGHCVersion
+    , nthGHCVersion
+    , allGhcVer
     , baseVer
     , cabalBaseVersions
     , ghcTable
-
     , oldGhcs
     ) where
 
-import Relude.Extra.Enum (inverseMap, universe)
-
 import qualified Data.Text as T
 import qualified Text.Show as Show
-
+import Data.Version
+import Data.Yaml
+import Data.FileEmbed
+import System.IO.Unsafe
+import qualified Data.Map.Strict as M
+import qualified Data.HashMap.Strict as HM
+import Text.ParserCombinators.ReadP (readP_to_S)
+import Control.Monad.Catch
+import System.Environment.XDG.BaseDir
+import System.FilePath
+import System.IO.Error
+import qualified Data.ByteString as BS
 
 -- | Represents some selected set of GHC versions.
 data GhcVer
-    = Ghc802
-    | Ghc822
-    | Ghc844
-    | Ghc865
-    | Ghc884
-    | Ghc8103
-    deriving stock (Eq, Ord, Show, Enum, Bounded)
+    = GhcVer { ghcVer :: !Version -- ^ Ghc version
+             , latestLts :: !Text -- ^ Returns latest known LTS resolver for all GHC versions except default one.
+             , baseVerPvp :: !Pvp
+             , isOld :: !Bool
+             } deriving stock (Show)
+
+instance Eq GhcVer where
+  (==) = (==) `on` ghcVer
+  (/=) = (/=) `on` ghcVer
+
+instance Ord GhcVer where
+  compare = compare `on` ghcVer
+
+newtype Config = Config { unConfig :: M.Map Version GhcVer }
+
+instance FromJSON Config where
+  parseJSON = withObject "Config" $ \o ->
+    Config . M.fromList <$>
+      forM (HM.toList o) (\(k, v) -> do
+        k' <- parseJSON (String k)
+        v' <- parseGV k' v
+        pure (k', v'))
+    where
+    parseGV ver = withObject "GhcVer" $ \v -> GhcVer ver
+      <$> v .: "resolver"
+      <*> v .: "base"
+      <*> v .:? "old" .!= False
+
+instance FromJSON Pvp where
+  parseJSON v = do
+    version <- parseJSON v
+    case version of
+      Version{versionBranch=[a,b,c,d]} -> pure $ Pvp a b c d
+      _ -> fail "Invalid base version"
+
+{-# NOINLINE remoteConfig #-}
+remoteConfig :: Maybe ByteString
+remoteConfig = unsafePerformIO $ do
+    cacheDir <- getUserCacheDir "summoner"
+    Just <$> BS.readFile (cacheDir </> "config.yaml")
+  `catch` \h -> let _ = (h :: IOError) in
+    return Nothing
+
+localConfig :: ByteString
+localConfig = $(embedFile "config.yaml")
+
+config :: Config
+config = case decodeEither' <$> remoteConfig of
+    Just (Right a) -> a
+    _ -> case decodeEither' localConfig of
+      Right a -> a
+      Left err -> error . T.pack $ show err
+
+latestGHCVersion :: GhcVer
+latestGHCVersion = snd . M.findMax $ unConfig config
+
+nthGHCVersion :: Int -> GhcVer
+nthGHCVersion n = case snd <$> reverse (M.toList . unConfig $ config) !!? n of
+  Just r -> r
+  Nothing -> error $ "Failed to get " <> show n <> "th GHC version"
 
 -- | Converts 'GhcVer' into dot-separated string.
 showGhcVer :: GhcVer -> Text
-showGhcVer = \case
-    Ghc802  -> "8.0.2"
-    Ghc822  -> "8.2.2"
-    Ghc844  -> "8.4.4"
-    Ghc865  -> "8.6.5"
-    Ghc884  -> "8.8.4"
-    Ghc8103 -> "8.10.3"
+showGhcVer = T.pack . showVersion . ghcVer
+
+allGhcVer :: [GhcVer]
+allGhcVer = M.elems $ unConfig config
 
 {- | These are old GHC versions that are not working with default GHC versions
 when using Stack.
 -}
 oldGhcs :: [GhcVer]
-oldGhcs = [minBound .. Ghc844]
+oldGhcs = filter isOld allGhcVer
 
 parseGhcVer :: Text -> Maybe GhcVer
-parseGhcVer = inverseMap showGhcVer
-
--- | Returns latest known LTS resolver for all GHC versions except default one.
-latestLts :: GhcVer -> Text
-latestLts = \case
-    Ghc802  -> "lts-9.21"
-    Ghc822  -> "lts-11.22"
-    Ghc844  -> "lts-12.26"
-    Ghc865  -> "lts-14.27"
-    Ghc884  -> "lts-16.17"
-    Ghc8103 -> "lts-17.0"
+parseGhcVer t =
+  case filter (null . snd)
+       $ readP_to_S parseVersion (T.unpack t) of
+  [(v, "")] -> M.lookup v $ unConfig config
+  _ -> Nothing
 
 -- | Represents PVP versioning (4 numbers).
 data Pvp = Pvp
@@ -80,16 +137,6 @@ data Pvp = Pvp
 -- | Show PVP version in a standard way: @1.2.3.4@
 instance Show Pvp where
     show (Pvp a b c d) = intercalate "." $ map Show.show [a, b, c, d]
-
--- | Returns base version by 'GhcVer' as 'Pvp'.
-baseVerPvp :: GhcVer -> Pvp
-baseVerPvp = \case
-    Ghc802  -> Pvp 4 9 1 0
-    Ghc822  -> Pvp 4 10 1 0
-    Ghc844  -> Pvp 4 11 1 0
-    Ghc865  -> Pvp 4 12 0 0
-    Ghc884  -> Pvp 4 13 0 0
-    Ghc8103 -> Pvp 4 14 1 0
 
 -- | Returns corresponding @base@ version of the given GHC version.
 baseVer :: GhcVer -> Text
@@ -130,7 +177,7 @@ toGhcMeta ghcVer = GhcMeta
     }
 
 ghcTable :: [Text]
-ghcTable = map (formatGhcMeta . toGhcMeta) universe
+ghcTable = map (formatGhcMeta . toGhcMeta) allGhcVer
 
 {- Formats 'GhcMeta' in a special way.
 It aligns the meta to the left, filling on the right with the spaces.

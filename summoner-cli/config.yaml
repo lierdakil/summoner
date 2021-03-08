@@ -1,0 +1,21 @@
+8.0.2:
+  resolver: "lts-9.21"
+  base: "4.9.1.0"
+  old: true
+8.2.2:
+  resolver: "lts-11.22"
+  base: "4.10.1.0"
+  old: true
+8.4.4:
+  resolver: "lts-12.26"
+  base: "4.11.1.0"
+  old: true
+8.6.5:
+  resolver: "lts-14.27"
+  base: "4.12.0.0"
+8.8.4:
+  resolver: "lts-16.17"
+  base: "4.13.0.0"
+8.10.4:
+  resolver: "lts-17.5"
+  base: "4.14.1.0"
