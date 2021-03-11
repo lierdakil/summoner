@@ -36,7 +36,7 @@ import Data.FileEmbed
 import System.IO.Unsafe
 import qualified Data.Map.Strict as M
 import qualified Data.HashMap.Strict as HM
-import Text.ParserCombinators.ReadP (readP_to_S)
+import Text.ParserCombinators.ReadP (readP_to_S, eof)
 import Control.Monad.Catch
 import System.Environment.XDG.BaseDir
 import System.FilePath
@@ -121,8 +121,7 @@ oldGhcs = filter isOld allGhcVer
 
 parseGhcVer :: Text -> Maybe GhcVer
 parseGhcVer t =
-  case filter (null . snd)
-       $ readP_to_S parseVersion (T.unpack t) of
+  case readP_to_S (parseVersion <* eof) (T.unpack t) of
   [(v, "")] -> M.lookup v $ unConfig config
   _ -> Nothing
 
